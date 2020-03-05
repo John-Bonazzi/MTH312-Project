@@ -11,17 +11,16 @@ window.geometry('350x250')
 
 diff = IntVar()
 
+def passwordUpdate():
+  window.after(1000,password.give_hint())
+  display = password.get_password()
+  knownLbl.configure(text=display)
+  window.update()
 
 def checkStrength():
-    password = Password(passBox.get())
-    passBox.configure(state='disabled')
-    while (password.get_password()!=password.get_password_plain()):
-        window.after(1000-300*diff.get(),password.give_hint())
-        display = password.get_password()
-        knownLbl.configure(text=display)
-        window.update()
-
-    passBox.configure(state='enabled')
+    password = Password(passBox.get(),passwordUpdate)
+    #passBox.configure(state='disabled')
+    #passBox.configure(state='enabled')
 
 
 
