@@ -1,0 +1,45 @@
+from tkinter import *
+from tkinter.ttk import *
+
+window = Tk()
+
+window.title("MTH312 Project")
+window.geometry('350x250')
+
+diff = IntVar()
+
+
+def checkStrength():
+    password =passBox.get()
+    if(len(password)<(8+2*(diff.get()-1))):
+        strengthLbl.configure(text="not strong enough.")
+        timeLbl.configure(text="time to crack = 0s")
+    elif(len(password)<(12+3*(diff.get()-1))):
+        strengthLbl.configure(text="Fairly Strong.")
+        timeLbl.configure(text="time to crack = 10s")
+    else:
+        strengthLbl.configure(text="Strong.")
+        timeLbl.configure(text="unable to crack in time")
+
+
+easyRad = Radiobutton(window, text='Easy', value=1, variable=diff)
+medRad = Radiobutton(window, text='Medium', value=2, variable=diff)
+hardRad = Radiobutton(window, text='Hard', value=3, variable=diff)
+passLbl = Label(window, text="Enter \"Password\":")
+passBox = Entry(window,width=20)
+strengthLbl = Label(window, text="")
+enterBtn = Button(window, text="Check Strength", command=checkStrength)
+timeLbl = Label(window, text="")
+
+passLbl.grid(column=0,row=0)
+passBox.grid(column=0,row=1)
+enterBtn.grid(column=1,row=1)
+strengthLbl.grid(column=0,row=2)
+timeLbl.grid(column=0,row=3)
+easyRad.grid(column=0,row=4)
+medRad.grid(column=1,row=4)
+hardRad.grid(column=2,row=4)
+
+passBox.focus()
+
+window.mainloop()
