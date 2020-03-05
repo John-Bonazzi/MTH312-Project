@@ -16,7 +16,7 @@ def checkStrength():
     password = Password(passBox.get())
     passBox.configure(state='disabled')
     while (password.get_password()!=password.get_password_plain()):
-        window.after(1000,password.give_hint())
+        window.after(1000-300*diff.get(),password.give_hint())
         display = password.get_password()
         knownLbl.configure(text=display)
         window.update()
