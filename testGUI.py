@@ -10,10 +10,10 @@ window.geometry('350x250')
 
 diff = IntVar()
 
-def passwordUpdate():
-  window.after(1000,password.give_hint())
-  display = password.get_password()
-  knownLbl.configure(text=display)
+def passwordUpdate(message):
+  #window.after(1000,password.give_hint())
+  #display = password.get_password()
+  knownLbl.configure(text=message)
   window.update()
 
 def checkStrength():
