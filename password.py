@@ -1,4 +1,5 @@
 import secrets
+from threading import Timer
 
 class Password:
     password_plain = []
@@ -15,6 +16,9 @@ class Password:
         self.set_password(password)
         self.gui_update = gui_update
         self.unknown_positions = list(range(0, len(self.password_plain)))
+        t = Timer(3.0, self.give_hint)
+        t.start()
+        
 
     def set_password(self, new_password):
         self.password_plain = list(new_password)
@@ -34,7 +38,7 @@ class Password:
         self.password[position] = self.password_plain[position]
         self.unknown_positions.remove(position)
         if self.gui_update is not None:
-            self.gui_update(self.password)
+            self.gui_update(self.get_password())
 
     def get_pos(self):
         return self.unknown_positions
