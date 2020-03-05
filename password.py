@@ -7,10 +7,13 @@ class Password:
 
     unknown_positions = []
 
-    def __init__(self, password, length_limit=16, fixed_length=False):
+    gui_update = None
+
+    def __init__(self, password, gui_update=None, length_limit=16, fixed_length=False):
         if length_limit:
             pass
         self.set_password(password)
+        self.gui_update = gui_update
         self.unknown_positions = list(range(0, len(self.password_plain)))
 
     def set_password(self, new_password):
@@ -30,6 +33,8 @@ class Password:
         position = secrets.choice(self.unknown_positions)
         self.password[position] = self.password_plain[position]
         self.unknown_positions.remove(position)
+        if self.gui_update is not None:
+            self.gui_update(self.password)
 
     def get_pos(self):
         return self.unknown_positions
