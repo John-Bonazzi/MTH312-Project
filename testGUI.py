@@ -9,15 +9,33 @@ window.title("MTH312 Project")
 window.geometry('350x250')
 
 diff = IntVar()
+window.passDispFlag = True
+
+
+def testVal(P):
+    if not (P.isalpha() and P.islower()):
+        return False
+    return True
 
 
 def passwordUpdate(message):
-    knownLbl.configure(text=message)
+    if message == "GAME OVER":
+        enterBtn.configure(state="enabled")
+        passBox.configure(state="enabled")
+        window.passDispFlag = False
+        messagebox.showinfo("YOU WIN!", "The test took too long and timed out,\n "
+                                        "congratulations! You're Password is secure")
+        knownLbl.configure(text="")
+    elif window.passDispFlag:
+        knownLbl.configure(text=message)
     window.update()
 
 
 def checkStrength():
-    password = Password(passBox.get(), passwordUpdate)
+    Password(passBox.get(), passwordUpdate)
+    enterBtn.configure(state="disabled")
+    passBox.configure(state="disabled")
+    window.passDispFlag = True
 
 
 
@@ -29,7 +47,8 @@ easyRad = Radiobutton(window, text='Easy', value=1, variable=diff)
 medRad = Radiobutton(window, text='Medium', value=2, variable=diff)
 hardRad = Radiobutton(window, text='Hard', value=3, variable=diff)
 passLbl = Label(window, text="Enter \"Password\":")
-passBox = Entry(window, width=20)
+passBox = Entry(window, width=20, validate="key")
+passBox.configure(validatecommand=(passBox.register(testVal), '%P'))
 knownLbl = Label(window, text="")
 enterBtn = Button(window, text="Check Strength", command=checkStrength)
 timeLbl = Label(window, text="")
@@ -53,5 +72,6 @@ window.config(menu=fileMenu)
 passBox.focus()
 diff.set(1)
 window.update()
+
 
 window.mainloop()
