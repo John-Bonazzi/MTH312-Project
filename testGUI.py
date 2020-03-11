@@ -10,10 +10,13 @@ window.geometry('350x250')
 
 diff = IntVar()
 window.passDispFlag = True
+window.passLimit = 16
 
 
 def testVal(P):
     if not (P.isalpha() and P.islower()):
+        return False
+    if len(passBox.get()) == window.passLimit:
         return False
     return True
 
