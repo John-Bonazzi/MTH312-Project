@@ -131,3 +131,6 @@ dmypy.json
 .vscode/
 
 .pylintrc
+
+# Personal code-testing local file - John
+test.py

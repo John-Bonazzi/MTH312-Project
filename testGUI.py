@@ -27,7 +27,7 @@ def passwordUpdate(message):
         passBox.configure(state="enabled")
         window.passDispFlag = False
         messagebox.showinfo("YOU WIN!", "The test took too long and timed out,\n "
-                                        "congratulations! You're Password is secure")
+                                        "congratulations! Your Password is secure")
         knownLbl.configure(text="")
     elif window.passDispFlag:
         knownLbl.configure(text=message)

@@ -2,7 +2,9 @@ import secrets
 from threading import Timer, RLock
 
 class Password:
-    password_plain = []
+    password_plain = [] #The plain password in a list form
+
+    raw_password = '' #The plain password in a string form
 
     password = []
 
@@ -10,7 +12,7 @@ class Password:
 
     gui_update = None
 
-    delay = 0.0
+    hints = True
 
     lock = None
 
@@ -18,9 +20,11 @@ class Password:
 
     timeLimit = 0.0
 
+    delay = 0.0
+
     timers = []
 
-    def __init__(self, password, gui_update=None, delay=1.0, time_limit=5.0, length_limit=16, fixed_length=False):
+    def __init__(self, password, gui_update=None, delay=1.0, time_limit=5.0, length_limit=16, fixed_length=False, use_hint=True):
         if length_limit:
             pass
         self.set_password(password)
@@ -29,15 +33,24 @@ class Password:
         self.lock = RLock()
         self.delay = delay
         self.timeLimit = time_limit
+        self.hints = use_hint
         self.running = True
         self.timers = []
         self.set_timers()
+        """
+        Code block for:
+        - Creating Threads
+        - Join()ing Threads
+        - Print statistics
+        - Print result
+        """
     
     # Create the Timer objects, ready to be used
     def set_timers(self):
         self.timers.append(Timer(self.timeLimit, self.game_over).start())   #0
-        self.timers.append(Timer(self.delay, self.run).start())             #1
-        self.timers.append(Timer(self.delay, self.give_hint).start())       #2
+        if self.hints:
+            self.timers.append(Timer(self.delay, self.run).start())             #1
+            self.timers.append(Timer(self.delay, self.give_hint).start())       #2
     
     # Set a single timer, used to reset a timer.
     def set_timer(self, index, delay, func):
@@ -46,7 +59,7 @@ class Password:
     #Method to try and decrease time drift. Ideally, the two Timer threads are concurrent, so that the Timer is not set in the Thread giving the hint, but set in another Thread to prevent (most) drifting issues
     #The idea is to have a primitive scheduler that fits our purposes better.
     def run(self):
-        if self.running:
+        if self.running and self.hints:
             self.set_timer(1, self.delay, self.run)
             self.set_timer(2, self.delay, self.give_hint)
 
@@ -60,6 +73,7 @@ class Password:
                 print("ERROR!")
 
     def set_password(self, new_password):
+        self.raw_password = new_password
         self.password_plain = list(new_password)
         self.hide_password(new_password)
 
@@ -86,6 +100,12 @@ class Password:
     def breakPassword(self):
         with self.lock:
             pass
+
+    def database_search(self):
+        with open('database/db.txt', 'r') as f:
+            for line in f:
+                if line[0:len(line)-1] == self.raw_password:
+                    self.game_over()
 
     def game_over(self):
         self.gui_update("GAME OVER")
