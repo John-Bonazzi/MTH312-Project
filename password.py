@@ -1,5 +1,7 @@
 import secrets
 from threading import Timer, RLock
+from multiprocessing import Process
+from write_process import append_to_file
 
 class Password:
     password_plain = [] #The plain password in a list form
@@ -24,9 +26,16 @@ class Password:
 
     timers = []
 
-    def __init__(self, password, gui_update=None, delay=1.0, time_limit=5.0, length_limit=16, fixed_length=False, use_hint=True):
+    databases = {
+        database: None,
+        stored_db: None
+    }
+
+    def __init__(self, password, gui_update=None, delay=1.0, time_limit=5.0, length_limit=16, fixed_length=False, use_hint=True, database_path=database/db.txt, stored_path=database/stored.txt):
         if length_limit:
             pass
+        self.databases[database] = database_path
+        self.databases[stored_db] = stored_path
         self.set_password(password)
         self.gui_update = gui_update
         self.unknown_positions = list(range(0, len(self.password_plain)))
@@ -98,19 +107,28 @@ class Password:
 
     #Don't try to find the final password, but find a close match, give back some stats on the time it takes, etc...
     def breakPassword(self):
+        vals = [] #TODO: make a file with all accepted values, then read it and make it a list.
         with self.lock:
             pass
 
     def database_search(self):
-        with open('database/db.txt', 'r') as f:
+        with open(self.databases[database], 'r') as f:
             for line in f:
                 if line[0:len(line)-1] == self.raw_password:
                     self.game_over()
+    
+    def stored_search(self):
+        with open(self.databases[stored_db], 'r') as f:
+            for line in f:
+                if line[0:len(line)-1] == self.raw_password:
+                    self.game_over() 
 
     def game_over(self):
         self.gui_update("GAME OVER")
-        #Do something
+        p = Process(target=append_to_file, args=(self.databases[stored_db], self.raw_password)) #Process because if something happens to the main program the save process will survive.
+        p.start()
         self.stop()
+        p.join()
 
     def get_pos(self):
         return self.unknown_positions
