@@ -2,6 +2,7 @@ import secrets
 from threading import Timer, RLock
 from multiprocessing import Process
 from write_process import append_to_file
+import string
 
 class Password:
     password_plain = [] #The plain password in a list form
@@ -14,7 +15,9 @@ class Password:
 
     gui_update = None
 
-    hints = True
+    hints_on = True
+
+    hint = True
 
     lock = None
 
@@ -31,7 +34,7 @@ class Password:
         stored_db: None
     }
 
-    def __init__(self, password, gui_update=None, delay=1.0, time_limit=5.0, length_limit=16, fixed_length=False, use_hint=True, database_path=database/db.txt, stored_path=database/stored.txt):
+    def __init__(self, password, gui_update=None, delay=1.0, time_limit=5.0, length_limit=16, fixed_length=False, use_hint=True, starting_hint=True, database_path=database/db.txt, stored_path=database/stored.txt):
         if length_limit:
             pass
         self.databases[database] = database_path
@@ -42,22 +45,17 @@ class Password:
         self.lock = RLock()
         self.delay = delay
         self.timeLimit = time_limit
-        self.hints = use_hint
+        self.hints_on = use_hint
         self.running = True
+        self.hint = starting_hint
         self.timers = []
         self.set_timers()
-        """
-        Code block for:
-        - Creating Threads
-        - Join()ing Threads
-        - Print statistics
-        - Print result
-        """
+        
     
     # Create the Timer objects, ready to be used
     def set_timers(self):
         self.timers.append(Timer(self.timeLimit, self.game_over).start())   #0
-        if self.hints:
+        if self.hints_on:
             self.timers.append(Timer(self.delay, self.run).start())             #1
             self.timers.append(Timer(self.delay, self.give_hint).start())       #2
     
@@ -68,8 +66,17 @@ class Password:
     #Method to try and decrease time drift. Ideally, the two Timer threads are concurrent, so that the Timer is not set in the Thread giving the hint, but set in another Thread to prevent (most) drifting issues
     #The idea is to have a primitive scheduler that fits our purposes better.
     def run(self):
-        if self.running and self.hints:
-            self.set_timer(1, self.delay, self.run)
+        self.timers_operator()
+        """
+        Code block for:
+        - Creating Threads
+        - Join()ing Threads - maybe
+        - start threads
+        """
+    
+    def timers_operator(self):
+        if self.running and self.hints_on:
+            self.set_timer(1, self.delay, self.timers_operator)
             self.set_timer(2, self.delay, self.give_hint)
 
     #Stop the execution of the progam, and stop all timers.
@@ -96,21 +103,33 @@ class Password:
         return "".join(self.password_plain)
 
     def give_hint(self):
-        if len(self.unknown_positions) == 0:
-            return None
-        with self.lock:
-            position = secrets.choice(self.unknown_positions)
-            self.password[position] = self.password_plain[position]
-            self.unknown_positions.remove(position)
-        if self.gui_update is not None and self.running:
-            self.gui_update(self.get_password())
+        if len(self.unknown_positions) != 0 and self.running:
+            with self.lock:
+                self.hint = True
 
-    #Don't try to find the final password, but find a close match, give back some stats on the time it takes, etc...
-    def breakPassword(self):
-        vals = [] #TODO: make a file with all accepted values, then read it and make it a list.
-        with self.lock:
-            pass
-
+    def brute_force(self):
+        vals = string.ascii_letters + string.digits + string.punctuation 
+        repeat = False
+        while self.running:
+            val = secrets.choice(vals)
+            with self.lock:
+                position = secrets.choice(self.unknown_positions)
+                if self.hint:
+                    self.password[position] = self.password_plain[position]
+                    self.unknown_positions.remove(position)
+                    self.hint = False
+                    repeat = True
+            if repeat:
+                repeat = False
+                continue
+            else:
+                with self.lock:
+                    if self.password_plain[position] == val:
+                        self.password[position] = self.password_plain[position]
+                        self.unknown_positions.remove(position)
+                    else:
+                        pass #add increment to stats?
+     
     def database_search(self):
         with open(self.databases[database], 'r') as f:
             for line in f:
