@@ -30,15 +30,15 @@ class Password:
     timers = []
 
     databases = {
-        database: None,
-        stored_db: None
+        "database": None,
+        "stored_db": None
     }
 
-    def __init__(self, password, gui_update=None, delay=1.0, time_limit=5.0, length_limit=16, fixed_length=False, use_hint=True, starting_hint=True, database_path=database/db.txt, stored_path=database/stored.txt):
+    def __init__(self, password, gui_update=None, delay=1.0, time_limit=5.0, length_limit=16, fixed_length=False, use_hint=True, starting_hint=True, database_path="database/db.txt", stored_path="database/stored.txt"):
         if length_limit:
             pass
-        self.databases[database] = database_path
-        self.databases[stored_db] = stored_path
+        self.databases["database"] = database_path
+        self.databases["stored_db"] = stored_path
         self.set_password(password)
         self.gui_update = gui_update
         self.unknown_positions = list(range(0, len(self.password_plain)))
