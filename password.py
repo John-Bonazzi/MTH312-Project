@@ -34,13 +34,19 @@ class Password:
         "stored_db": None
     }
 
+    timing = 0 #DELETE THIS
+
     def __init__(self, password, gui_update=None, delay=1.0, time_limit=5.0, length_limit=16, fixed_length=False, use_hint=True, starting_hint=True, database_path="database/db.txt", stored_path="database/stored.txt"):
         if length_limit:
             pass
+        self.gui_update = gui_update
         self.databases["database"] = database_path
         self.databases["stored_db"] = stored_path
+        if password == '':
+            print("Stopping game")
+            self.game_over()
+            return
         self.set_password(password)
-        self.gui_update = gui_update
         self.unknown_positions = list(range(0, len(self.password_plain)))
         self.lock = RLock()
         self.delay = delay
@@ -49,15 +55,7 @@ class Password:
         self.running = True
         self.hint = starting_hint
         self.timers = []
-        self.set_timers()
-        
-    
-    # Create the Timer objects, ready to be used
-    def set_timers(self):
-        self.timers.append(Timer(self.timeLimit, self.game_over).start())   #0
-        if self.hints_on:
-            self.timers.append(Timer(self.delay, self.run).start())             #1
-            self.timers.append(Timer(self.delay, self.give_hint).start())       #2
+        self.run()
     
     # Set a single timer, used to reset a timer.
     def set_timer(self, index, delay, func):
@@ -66,7 +64,10 @@ class Password:
     #Method to try and decrease time drift. Ideally, the two Timer threads are concurrent, so that the Timer is not set in the Thread giving the hint, but set in another Thread to prevent (most) drifting issues
     #The idea is to have a primitive scheduler that fits our purposes better.
     def run(self):
-        self.timers_operator()
+        self.timers.append(Timer(self.timeLimit, self.game_over).start())       #0
+        if self.hints_on:
+            self.timers.append(Timer(self.delay, self.timers_operator).start()) #1
+            self.timers.append(Timer(self.delay, self.give_hint).start())       #2
         """
         Code block for:
         - Creating Threads
@@ -86,7 +87,7 @@ class Password:
             try:
                 timer.cancel()
             except AttributeError:
-                print("ERROR!")
+                continue
 
     def set_password(self, new_password):
         self.raw_password = new_password
@@ -106,6 +107,8 @@ class Password:
         if len(self.unknown_positions) != 0 and self.running:
             with self.lock:
                 self.hint = True
+                self.gui_update(str(self.timing+1))
+                self.timing += 1
 
     def brute_force(self):
         vals = string.ascii_letters + string.digits + string.punctuation 
@@ -143,11 +146,12 @@ class Password:
                     self.game_over() 
 
     def game_over(self):
-        self.gui_update("GAME OVER")
-        p = Process(target=append_to_file, args=(self.databases[stored_db], self.raw_password)) #Process because if something happens to the main program the save process will survive.
+        p = Process(target=append_to_file, args=(self.databases["stored_db"], self.raw_password)) #Process because if something happens to the main program the save process will survive.
         p.start()
         self.stop()
         p.join()
+        self.gui_update("GAME OVER")
+        
 
     def get_pos(self):
         return self.unknown_positions
