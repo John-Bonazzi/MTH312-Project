@@ -2,6 +2,8 @@ from tkinter import *
 from tkinter.ttk import *
 from password import Password
 from tkinter import messagebox
+import re
+import string
 
 window = Tk()
 
@@ -14,7 +16,7 @@ window.passLimit = 16
 
 
 def testVal(P):
-    if not (P.isalpha() and P.islower()):
+    if not (re.match(string.printable, P)):
         return False
     if len(passBox.get()) == window.passLimit:
         return False
@@ -39,7 +41,6 @@ def checkStrength():
     enterBtn.configure(state="disabled")
     passBox.configure(state="disabled")
     window.passDispFlag = True
-
 
 
 def about():
