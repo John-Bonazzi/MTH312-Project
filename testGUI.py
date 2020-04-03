@@ -16,7 +16,7 @@ window.passLimit = 16
 
 
 def testVal(P):
-    if not (re.match(string.printable, P)):
+    if not (re.match(string.printable, P)): #printable throws an error here, because there are multiple whitespace characters that repeat in there
         return False
     if len(passBox.get()) == window.passLimit:
         return False

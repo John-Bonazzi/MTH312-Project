@@ -1,5 +1,5 @@
 import secrets
-from threading import Timer, RLock
+from threading import Thread, Timer, RLock
 from multiprocessing import Process
 from write_process import append_to_file
 import string
@@ -34,7 +34,15 @@ class Password:
         "stored_db": None
     }
 
-    timing = 0 #DELETE THIS
+    threads = {
+        "brute_force": None,
+        "database_search": None,
+        "local_search": None,
+    }
+
+    found = False
+
+    count = 0 #Delete after testing
 
     def __init__(self, password, gui_update=None, delay=1.0, time_limit=5.0, length_limit=16, fixed_length=False, use_hint=True, starting_hint=True, database_path="database/db.txt", stored_path="database/stored.txt"):
         if length_limit:
@@ -55,6 +63,7 @@ class Password:
         self.running = True
         self.hint = starting_hint
         self.timers = []
+        self.found = False
         self.run()
     
     # Set a single timer, used to reset a timer.
@@ -64,16 +73,19 @@ class Password:
     #Method to try and decrease time drift. Ideally, the two Timer threads are concurrent, so that the Timer is not set in the Thread giving the hint, but set in another Thread to prevent (most) drifting issues
     #The idea is to have a primitive scheduler that fits our purposes better.
     def run(self):
-        self.timers.append(Timer(self.timeLimit, self.game_over).start())       #0
+        self.threads["brute_force"] = Thread(target = self.brute_force)
+        self.threads["database_search"] = Thread(target = self.database_search)
+        self.threads["local_search"] = Thread(target = self.stored_search)
+        for t in self.threads:
+            self.threads[t].start()
+        self.timers.append(Timer(self.timeLimit, self.stop).start())       #0
         if self.hints_on:
             self.timers.append(Timer(self.delay, self.timers_operator).start()) #1
             self.timers.append(Timer(self.delay, self.give_hint).start())       #2
-        """
-        Code block for:
-        - Creating Threads
-        - Join()ing Threads - maybe
-        - start threads
-        """
+        self.threads["brute_force"].join()
+        self.threads["database_search"].join()
+        self.threads["local_search"].join()
+        self.game_over()
     
     def timers_operator(self):
         if self.running and self.hints_on:
@@ -116,7 +128,10 @@ class Password:
         while self.running:
             val = secrets.choice(vals)
             with self.lock:
-                position = secrets.choice(self.unknown_positions)
+                if self.unknown_positions != []:
+                    position = secrets.choice(self.unknown_positions)
+                else:
+                    position = None
                 if self.hint:
                     self.password[position] = self.password_plain[position]
                     self.unknown_positions.remove(position)
@@ -127,30 +142,38 @@ class Password:
                 continue
             else:
                 with self.lock:
-                    if self.password_plain[position] == val:
+                    if position is not None and self.password_plain[position] == val:
                         self.password[position] = self.password_plain[position]
                         self.unknown_positions.remove(position)
                     else:
                         pass #add increment to stats?
      
     def database_search(self):
-        with open(self.databases[database], 'r') as f:
+        with open(self.databases['database'], 'r') as f:
             for line in f:
+                if not self.running:
+                    return
                 if line[0:len(line)-1] == self.raw_password:
-                    self.game_over()
+                    self.found = True
+                    self.stop()
     
     def stored_search(self):
-        with open(self.databases[stored_db], 'r') as f:
+        with open(self.databases['stored_db'], 'r') as f:
             for line in f:
+                if not self.running:
+                    return
                 if line[0:len(line)-1] == self.raw_password:
-                    self.game_over() 
+                    self.found = True
+                    self.stop()
 
     def game_over(self):
+        self.count += 1
         p = Process(target=append_to_file, args=(self.databases["stored_db"], self.raw_password)) #Process because if something happens to the main program the save process will survive.
         p.start()
         self.stop()
-        p.join()
+        print(self.count)
         self.gui_update("GAME OVER")
+        p.join()
         
 
     def get_pos(self):
