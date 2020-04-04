@@ -3,6 +3,7 @@ from threading import Thread, Timer, RLock
 from multiprocessing import Process
 from write_process import append_to_file
 import string
+import time
 
 class Password:
     password_plain = [] #The plain password in a list form
@@ -40,9 +41,14 @@ class Password:
         "local_search": None,
     }
 
+    stats = None
+
+    #TODO: Delete globals after this line when done with Statistics class
     found = False
 
     count = 0 #Delete after testing
+
+    #End delete here
 
     def __init__(self, password, gui_update=None, delay=1.0, time_limit=5.0, length_limit=16, fixed_length=False, use_hint=True, starting_hint=True, database_path="database/db.txt", stored_path="database/stored.txt"):
         if length_limit:
@@ -54,6 +60,8 @@ class Password:
             print("Stopping game")
             self.game_over()
             return
+        if self.stats == None:
+            self.stats = self.Statistics()
         self.set_password(password)
         self.unknown_positions = list(range(0, len(self.password_plain)))
         self.lock = RLock()
@@ -66,12 +74,74 @@ class Password:
         self.found = False
         self.run()
     
+    class Statistics:
+        password_found = False
+        
+        letters_found = [] #list of tuples of (position, time found)
+
+        hints_found = 0
+
+        time_start = 0
+
+        time_end = 0
+
+        operators = {
+            "brute force": 0,
+            "database": 0,
+            "local": 0,
+            "unidentified": 0
+        }
+
+        def __init__(self):
+            self.time_start = time.time()
+
+        def found(self, winner):
+            self.time_end = time.time()
+            try:
+                operators[winner] += 1
+            except KeyError:
+                operators["unidentified"] += 1
+            self.password_found = True
+
+        def found_letter(self, position):
+            self.letters_found.append((position, time.time() - self.time_start))
+
+        def found_hint(self):
+            self.hints_found += 1
+
+        def get_time(self):
+            return self.time_end - self.time_start
+
+        def get_letters_found(self):
+            return len(self.letters_found) + self.hints_found
+
+        #try and get an average of the time it takes to find a letter, hints are not counted.
+        #The list must be sorted by time from lower to higher for this to work.
+        def get_average_lt_found_time(self):
+            total = 0
+            previous = 0 #offset to get the interval between two findings
+            for tp in self.letters_found:
+                total += tp[1] - previous
+                previous = tp[1]
+            return total / len(self.letters_found)
+        
+        def reset(self):
+            self.time_start = 0
+            self.time_end = 0
+            self.password_found = False
+            self.letters_found = []
+            self.hints_found = 0
+        
+        def total_reset(self):
+            for key in self.operators:
+                self.operators[key] = 0
+            self.reset()
+            
+
     # Set a single timer, used to reset a timer.
     def set_timer(self, index, delay, func):
         self.timers[index] = Timer(delay, func).start()
             
-    #Method to try and decrease time drift. Ideally, the two Timer threads are concurrent, so that the Timer is not set in the Thread giving the hint, but set in another Thread to prevent (most) drifting issues
-    #The idea is to have a primitive scheduler that fits our purposes better.
     def run(self):
         self.threads["brute_force"] = Thread(target = self.brute_force)
         self.threads["database_search"] = Thread(target = self.database_search)
@@ -92,7 +162,7 @@ class Password:
             self.set_timer(1, self.delay, self.timers_operator)
             self.set_timer(2, self.delay, self.give_hint)
 
-    #Stop the execution of the progam, and stop all timers.
+    #Tells all threads to stop asap, and stop all timers.
     def stop(self):
         self.running = False
         for timer in self.timers:
@@ -128,7 +198,7 @@ class Password:
         while self.running:
             val = secrets.choice(vals)
             with self.lock:
-                if self.unknown_positions != []:
+                if self.unknown_positions != []: # a redundant check made obsolete by the check put at the end of the loop, as this case should not be possible.
                     position = secrets.choice(self.unknown_positions)
                 else:
                     position = None
@@ -145,8 +215,14 @@ class Password:
                     if position is not None and self.password_plain[position] == val:
                         self.password[position] = self.password_plain[position]
                         self.unknown_positions.remove(position)
-                    else:
-                        pass #add increment to stats?
+                    if self.unknown_positions == []:
+                        self.found = True
+                        self.stop()
+                        """
+                        Code block for:
+                        - increment stats
+                        - wrap up the execution
+                        """
      
     def database_search(self):
         with open(self.databases['database'], 'r') as f:
