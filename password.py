@@ -50,18 +50,19 @@ class Password:
 
     #End delete here
 
-    def __init__(self, password, gui_update=None, delay=1.0, time_limit=5.0, length_limit=16, fixed_length=False, use_hint=True, starting_hint=True, database_path="database/db.txt", stored_path="database/stored.txt"):
+    def __init__(self, password, gui_update=None, delay=1.0, time_limit=10.0, length_limit=16, fixed_length=False, use_hint=True, starting_hint=True, database_path="database/db.txt", stored_path="database/stored.txt"):
         if length_limit:
             pass
         self.gui_update = gui_update
         self.databases["database"] = database_path
         self.databases["stored_db"] = stored_path
+        print(password)
         if password == '':
             print("Stopping game")
             self.game_over()
             return
         if self.stats == None:
-            self.stats = self.Statistics()
+            self.stats = self.Statistics(len(password))
         self.set_password(password)
         self.unknown_positions = list(range(0, len(self.password_plain)))
         self.lock = RLock()
@@ -75,9 +76,17 @@ class Password:
         self.run()
     
     class Statistics:
+        operators = ["brute force", "database", "local", "unidentified"] #The name of each Thread that tries to break the password, with a default ['unidentified'] that is used internally to check for errors.
+        
+        indices = ["SAFE", "HIGH", "MEDIUM", "LOW"] #The name of each INDEX
+
+        definitions = ['not broken','wow', 'ok', 'sigh'] #The definition for each INDEX, it follows the same order, first definition is for first INDEX and so forth.
+
         password_found = False
         
         letters_found = [] #list of tuples of (position, time found)
+
+        password_length = 0
 
         hints_found = 0
 
@@ -85,15 +94,23 @@ class Password:
 
         time_end = 0
 
-        operators = {
-            "brute force": 0,
-            "database": 0,
-            "local": 0,
-            "unidentified": 0
-        }
+        tries = {} #Map of password-breaking tries for each operator. if password is broken in 3 or less tries, it is low by default
 
-        def __init__(self):
+        winners_count = {}
+
+        INDEX = {}
+
+        def __init__(self, passw_length):
             self.time_start = time.time()
+            self.password_length = passw_length
+            self.build_dictionary(self.operators, [0] * len(self.operators), self.winners_count)
+            self.build_dictionary(self.indices, self.definitions, self.INDEX)
+            self.build_dictionary(self.operators, [0] * len(self.operators), self.tries)
+        
+        def build_dictionary(self, keys, values, pointer):
+            for key, value in zip(keys, values):
+                pointer[key] = value
+
 
         def found(self, winner):
             self.time_end = time.time()
@@ -115,6 +132,27 @@ class Password:
         def get_letters_found(self):
             return len(self.letters_found) + self.hints_found
 
+        def get_INDEX(self, winner = -1):
+            #key_position = 0
+            key = 'LOW'
+            operator = self.operators[winner]
+            if not self.found: #TODO: change it so that it is safe based on how few letters brute force found (hints are not considered)
+                key = "SAFE"
+            elif self.tries[operator] <= 3:
+                key = "LOW"
+            elif winner == 2:
+                key = "LOW"
+            elif winner == 0:#TODO: complete this with brute force and something else
+                key = "HIGH"
+            elif winner == 0 or winner == 1:
+                key = "MEDIUM"
+            
+            #key = self.indices[key_position]
+            return (key, self.INDEX[key])
+
+        def increase_tries(self, caller = -1):
+            self.tries[self.operators[caller]] += 1
+
         #try and get an average of the time it takes to find a letter, hints are not counted.
         #The list must be sorted by time from lower to higher for this to work.
         def get_average_lt_found_time(self):
@@ -131,12 +169,13 @@ class Password:
             self.password_found = False
             self.letters_found = []
             self.hints_found = 0
+            self.tries = {}
+            self.build_dictionary(self.operators, [0] * len(self.operators), self.tries)
         
         def total_reset(self):
             for key in self.operators:
                 self.operators[key] = 0
-            self.reset()
-            
+            self.reset()     
 
     # Set a single timer, used to reset a timer.
     def set_timer(self, index, delay, func):
@@ -195,7 +234,7 @@ class Password:
     def brute_force(self):
         vals = string.ascii_letters + string.digits + string.punctuation 
         repeat = False
-        while self.running:
+        while self.running: #TODO: fix it so that it gets a lot of values, equal the number of unknown positions, to try at once (fill an array for that), then increase the tries.
             val = secrets.choice(vals)
             with self.lock:
                 if self.unknown_positions != []: # a redundant check made obsolete by the check put at the end of the loop, as this case should not be possible.
@@ -213,9 +252,11 @@ class Password:
             else:
                 with self.lock:
                     if position is not None and self.password_plain[position] == val:
+                        print(val) #FIXME: delete
                         self.password[position] = self.password_plain[position]
                         self.unknown_positions.remove(position)
                     if self.unknown_positions == []:
+                        print("found") #FIXME: delete
                         self.found = True
                         self.stop()
                         """
@@ -229,18 +270,23 @@ class Password:
             for line in f:
                 if not self.running:
                     return
+                self.stats.increase_tries(1)
                 if line[0:len(line)-1] == self.raw_password:
                     self.found = True
                     self.stop()
     
     def stored_search(self):
-        with open(self.databases['stored_db'], 'r') as f:
-            for line in f:
-                if not self.running:
-                    return
-                if line[0:len(line)-1] == self.raw_password:
-                    self.found = True
-                    self.stop()
+        try:
+            with open(self.databases['stored_db'], 'r') as f:
+                for line in f:
+                    if not self.running:
+                        return
+                    self.stats.increase_tries(2)
+                    if line[0:len(line)-1] == self.raw_password:
+                        self.found = True
+                        self.stop()
+        except FileNotFoundError:
+            return
 
     def game_over(self):
         self.count += 1
