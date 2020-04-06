@@ -57,7 +57,6 @@ class Password:
         self.databases["database"] = database_path
         self.databases["stored_db"] = stored_path
         if password == '':
-            print("Stopping game")
             self.game_over()
             return
         if self.stats == None:
@@ -120,7 +119,6 @@ class Password:
             except KeyError:
                 self.winners_count[self.operators[-1]] += 1
             self.winner = winner
-            print(self.winner)
             self.password_found = True
 
         def found_letter(self, position):
@@ -200,7 +198,6 @@ class Password:
         self.threads["database_search"].join()
         self.threads["local_search"].join()
         self.game_over()
-        print("done")
     
     def timers_operator(self):
         if self.running and self.hints_on:
@@ -257,24 +254,12 @@ class Password:
                 continue
             else:
                 with self.lock:
-                    if position is not None and self.password_plain[position] == val:
-                        print(val) #FIXME: delete
+                    if position is not None and self.password_plain[position] == val: 
                         self.password[position] = self.password_plain[position]
                         self.unknown_positions.remove(position)
-                    if self.unknown_positions == []:
-                        print("found") #FIXME: delete
+                    if self.unknown_positions == []:    
                         self.found = True
                         self.stop()"""
-     
-    """def database_search(self, db_name, operator):
-        with open(self.databases['database'], 'r') as f:
-            for line in f:
-                if not self.running:
-                    return
-                self.stats.increase_tries(operator)
-                if line[0:len(line)-1] == self.raw_password:
-                    self.found = True
-                    self.stop()"""
     
     def database_search(self, db_name, operator = -1):
         try:
