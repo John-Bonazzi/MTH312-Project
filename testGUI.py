@@ -3,9 +3,12 @@ from tkinter.ttk import *
 from password import Password
 from tkinter import messagebox
 import re
-import string
+
+FLAG = True
+
 
 window = Tk()
+
 
 window.title("MTH312 Project")
 window.geometry('350x250')
@@ -16,9 +19,9 @@ window.passLimit = 16
 
 
 def testVal(P):
-    if not (re.match(string.printable, P)): #printable throws an error here, because there are multiple whitespace characters that repeat in there
+    if not (re.fullmatch(r'(\S|\b)*', P)):
         return False
-    if len(passBox.get()) == window.passLimit:
+    if len(P) > window.passLimit:
         return False
     return True
 
@@ -37,19 +40,22 @@ def passwordUpdate(message):
 
 
 def checkStrength():
-    Password(passBox.get(), passwordUpdate)
-    enterBtn.configure(state="disabled")
-    passBox.configure(state="disabled")
-    window.passDispFlag = True
+    if len(passBox.get()) > 0:
+        Password(passBox.get(), passwordUpdate)
+        enterBtn.configure(state="disabled")
+        passBox.configure(state="disabled")
+        window.passDispFlag = True
+    else:
+        knownLbl.configure(text="enter a password to test")
 
 
 def about():
     messagebox.showinfo('MTH312 Project', "A MTH312 project by:\nJohn Bonazzi and Benjamin Brown")
 
 
-easyRad = Radiobutton(window, text='Easy', value=1, variable=diff)
-medRad = Radiobutton(window, text='Medium', value=2, variable=diff)
-hardRad = Radiobutton(window, text='Hard', value=3, variable=diff)
+#easyRad = Radiobutton(window, text='Easy', value=1, variable=diff)
+#medRad = Radiobutton(window, text='Medium', value=2, variable=diff)
+#hardRad = Radiobutton(window, text='Hard', value=3, variable=diff)
 passLbl = Label(window, text="Enter \"Password\":")
 passBox = Entry(window, width=20, validate="key")
 passBox.configure(validatecommand=(passBox.register(testVal), '%P'))
@@ -68,14 +74,13 @@ passBox.grid(column=0, row=1)
 enterBtn.grid(column=1, row=1)
 knownLbl.grid(column=0, row=2)
 timeLbl.grid(column=0, row=3)
-easyRad.grid(column=0, row=4)
-medRad.grid(column=1, row=4)
-hardRad.grid(column=2, row=4)
+#easyRad.grid(column=0, row=4)
+#medRad.grid(column=1, row=4)
+#hardRad.grid(column=2, row=4)
 
 window.config(menu=fileMenu)
 passBox.focus()
 diff.set(1)
 window.update()
-
 
 window.mainloop()
