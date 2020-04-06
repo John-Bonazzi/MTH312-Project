@@ -36,7 +36,7 @@ class Password:
     }
 
     threads = {
-        "brute_force": None,
+       # "brute_force": None, FIXME: uncomment
         "database_search": None,
         "local_search": None,
     }
@@ -50,13 +50,12 @@ class Password:
 
     #End delete here
 
-    def __init__(self, password, gui_update=None, delay=1.0, time_limit=10.0, length_limit=16, fixed_length=False, use_hint=True, starting_hint=True, database_path="database/db.txt", stored_path="database/stored.txt"):
+    def __init__(self, password, gui_update=None, delay=1.0, time_limit=5.0, length_limit=16, fixed_length=False, use_hint=True, starting_hint=True, database_path="database/db.txt", stored_path="database/stored.txt"):
         if length_limit:
             pass
         self.gui_update = gui_update
         self.databases["database"] = database_path
         self.databases["stored_db"] = stored_path
-        print(password)
         if password == '':
             print("Stopping game")
             self.game_over()
@@ -96,6 +95,8 @@ class Password:
 
         tries = {} #Map of password-breaking tries for each operator. if password is broken in 3 or less tries, it is low by default
 
+        winner = -1
+
         winners_count = {}
 
         INDEX = {}
@@ -112,12 +113,13 @@ class Password:
                 pointer[key] = value
 
 
-        def found(self, winner):
+        def found(self, winner = -1):
             self.time_end = time.time()
             try:
                 operators[winner] += 1
             except KeyError:
                 operators["unidentified"] += 1
+            self.winner = winner
             self.password_found = True
 
         def found_letter(self, position):
@@ -132,19 +134,19 @@ class Password:
         def get_letters_found(self):
             return len(self.letters_found) + self.hints_found
 
-        def get_INDEX(self, winner = -1):
+        def get_INDEX(self):
             #key_position = 0
             key = 'LOW'
-            operator = self.operators[winner]
+            operator = self.operators[self.winner]
             if not self.found: #TODO: change it so that it is safe based on how few letters brute force found (hints are not considered)
                 key = "SAFE"
             elif self.tries[operator] <= 3:
                 key = "LOW"
-            elif winner == 2:
+            elif self.winner == 2:
                 key = "LOW"
-            elif winner == 0:#TODO: complete this with brute force and something else
+            elif self.winner == 0:#TODO: complete this with brute force and something else
                 key = "HIGH"
-            elif winner == 0 or winner == 1:
+            elif self.winner == 0 or self.winner == 1:
                 key = "MEDIUM"
             
             #key = self.indices[key_position]
@@ -164,6 +166,7 @@ class Password:
             return total / len(self.letters_found)
         
         def reset(self):
+            self.winner = -1
             self.time_start = 0
             self.time_end = 0
             self.password_found = False
@@ -179,10 +182,11 @@ class Password:
 
     # Set a single timer, used to reset a timer.
     def set_timer(self, index, delay, func):
-        self.timers[index] = Timer(delay, func).start()
+        if self.running:
+            self.timers[index] = Timer(delay, func).start()
             
     def run(self):
-        self.threads["brute_force"] = Thread(target = self.brute_force)
+        #self.threads["brute_force"] = Thread(target = self.brute_force) FIXME: uncomment
         self.threads["database_search"] = Thread(target = self.database_search)
         self.threads["local_search"] = Thread(target = self.stored_search)
         for t in self.threads:
@@ -191,10 +195,11 @@ class Password:
         if self.hints_on:
             self.timers.append(Timer(self.delay, self.timers_operator).start()) #1
             self.timers.append(Timer(self.delay, self.give_hint).start())       #2
-        self.threads["brute_force"].join()
+        #self.threads["brute_force"].join() FIXME: uncomment
         self.threads["database_search"].join()
         self.threads["local_search"].join()
         self.game_over()
+        print("done")
     
     def timers_operator(self):
         if self.running and self.hints_on:
@@ -231,7 +236,7 @@ class Password:
                 self.gui_update(str(self.timing+1))
                 self.timing += 1
 
-    def brute_force(self):
+    """def brute_force(self):
         vals = string.ascii_letters + string.digits + string.punctuation 
         repeat = False
         while self.running: #TODO: fix it so that it gets a lot of values, equal the number of unknown positions, to try at once (fill an array for that), then increase the tries.
@@ -258,12 +263,7 @@ class Password:
                     if self.unknown_positions == []:
                         print("found") #FIXME: delete
                         self.found = True
-                        self.stop()
-                        """
-                        Code block for:
-                        - increment stats
-                        - wrap up the execution
-                        """
+                        self.stop()"""
      
     def database_search(self):
         with open(self.databases['database'], 'r') as f:
@@ -283,20 +283,18 @@ class Password:
                         return
                     self.stats.increase_tries(2)
                     if line[0:len(line)-1] == self.raw_password:
-                        self.found = True
+                        self.stats.password_found = True
                         self.stop()
         except FileNotFoundError:
             return
 
     def game_over(self):
-        self.count += 1
         p = Process(target=append_to_file, args=(self.databases["stored_db"], self.raw_password)) #Process because if something happens to the main program the save process will survive.
         p.start()
         self.stop()
-        print(self.count)
-        self.gui_update("GAME OVER")
+        #self.gui_update("GAME OVER")
+        self.gui_update(self.stats.get_INDEX()) #FIXME: delete
         p.join()
         
-
     def get_pos(self):
         return self.unknown_positions
