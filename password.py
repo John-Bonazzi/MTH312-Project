@@ -4,8 +4,13 @@ from multiprocessing import Process
 from write_process import append_to_file
 import string
 import time
+import logging
+
+logging.basicConfig(filename='log_password.txt', level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class Password:
+  
+
     password_plain = [] #The plain password in a list form
 
     raw_password = '' #The plain password in a string form
@@ -51,6 +56,7 @@ class Password:
     #End delete here
 
     def __init__(self, password, gui_update=None, delay=1.0, time_limit=5.0, length_limit=16, fixed_length=False, use_hint=True, starting_hint=True, database_path="database/db.txt", stored_path="database/stored.txt"):
+        logging.debug("password: " + password + " || delay: " + str(delay) + " || time limit: " + str(time_limit))
         if length_limit:
             pass
         self.gui_update = gui_update
@@ -137,7 +143,7 @@ class Password:
             #key_position = 0
             key = 'LOW'
             operator = self.operators[self.winner]
-            if not self.found: #TODO: change it so that it is safe based on how few letters brute force found (hints are not considered)
+            if not self.password_found: #TODO: change it so that it is safe based on how few letters brute force found (hints are not considered)
                 key = "SAFE"
             elif self.tries[operator] <= 3:
                 key = "LOW"
@@ -147,7 +153,7 @@ class Password:
                 key = "HIGH"
             elif self.winner == 0 or self.winner == 1:
                 key = "MEDIUM"
-            
+            logging.debug("found: " + str(self.hints_found) + " || tries: " + str(self.tries[operator]) + " || winner: " + str(self.winner) + " || key: " + key)
             #key = self.indices[key_position]
             return (key, self.INDEX[key])
 
