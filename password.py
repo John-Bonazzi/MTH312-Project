@@ -116,10 +116,11 @@ class Password:
         def found(self, winner = -1):
             self.time_end = time.time()
             try:
-                operators[winner] += 1
+                self.winners_count[self.operators[winner]] += 1
             except KeyError:
-                operators["unidentified"] += 1
+                self.winners_count[self.operators[-1]] += 1
             self.winner = winner
+            print(self.winner)
             self.password_found = True
 
         def found_letter(self, position):
@@ -187,8 +188,8 @@ class Password:
             
     def run(self):
         #self.threads["brute_force"] = Thread(target = self.brute_force) FIXME: uncomment
-        self.threads["database_search"] = Thread(target = self.database_search)
-        self.threads["local_search"] = Thread(target = self.stored_search)
+        self.threads["database_search"] = Thread(target = self.database_search, args = ("database", self.stats.operators.index("database")))
+        self.threads["local_search"] = Thread(target = self.database_search, args = ("stored_db", self.stats.operators.index("local")))
         for t in self.threads:
             self.threads[t].start()
         self.timers.append(Timer(self.timeLimit, self.stop).start())       #0
@@ -265,25 +266,25 @@ class Password:
                         self.found = True
                         self.stop()"""
      
-    def database_search(self):
+    """def database_search(self, db_name, operator):
         with open(self.databases['database'], 'r') as f:
             for line in f:
                 if not self.running:
                     return
-                self.stats.increase_tries(1)
+                self.stats.increase_tries(operator)
                 if line[0:len(line)-1] == self.raw_password:
                     self.found = True
-                    self.stop()
+                    self.stop()"""
     
-    def stored_search(self):
+    def database_search(self, db_name, operator = -1):
         try:
-            with open(self.databases['stored_db'], 'r') as f:
+            with open(self.databases[db_name], 'r') as f:
                 for line in f:
                     if not self.running:
                         return
-                    self.stats.increase_tries(2)
+                    self.stats.increase_tries(operator)
                     if line[0:len(line)-1] == self.raw_password:
-                        self.stats.password_found = True
+                        self.stats.found(operator)
                         self.stop()
         except FileNotFoundError:
             return
