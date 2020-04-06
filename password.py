@@ -57,7 +57,6 @@ class Password:
         self.databases["database"] = database_path
         self.databases["stored_db"] = stored_path
         if password == '':
-            print("Stopping game")
             self.game_over()
             return
         if self.stats == None:
@@ -116,9 +115,9 @@ class Password:
         def found(self, winner = -1):
             self.time_end = time.time()
             try:
-                operators[winner] += 1
+                self.winners_count[self.operators[winner]] += 1
             except KeyError:
-                operators["unidentified"] += 1
+                self.winners_count[self.operators[-1]] += 1
             self.winner = winner
             self.password_found = True
 
@@ -187,8 +186,8 @@ class Password:
             
     def run(self):
         #self.threads["brute_force"] = Thread(target = self.brute_force) FIXME: uncomment
-        self.threads["database_search"] = Thread(target = self.database_search)
-        self.threads["local_search"] = Thread(target = self.stored_search)
+        self.threads["database_search"] = Thread(target = self.database_search, args = ("database", self.stats.operators.index("database")))
+        self.threads["local_search"] = Thread(target = self.database_search, args = ("stored_db", self.stats.operators.index("local")))
         for t in self.threads:
             self.threads[t].start()
         self.timers.append(Timer(self.timeLimit, self.stop).start())       #0
@@ -199,7 +198,6 @@ class Password:
         self.threads["database_search"].join()
         self.threads["local_search"].join()
         self.game_over()
-        print("done")
     
     def timers_operator(self):
         if self.running and self.hints_on:
@@ -256,34 +254,22 @@ class Password:
                 continue
             else:
                 with self.lock:
-                    if position is not None and self.password_plain[position] == val:
-                        print(val) #FIXME: delete
+                    if position is not None and self.password_plain[position] == val: 
                         self.password[position] = self.password_plain[position]
                         self.unknown_positions.remove(position)
-                    if self.unknown_positions == []:
-                        print("found") #FIXME: delete
+                    if self.unknown_positions == []:    
                         self.found = True
                         self.stop()"""
-     
-    def database_search(self):
-        with open(self.databases['database'], 'r') as f:
-            for line in f:
-                if not self.running:
-                    return
-                self.stats.increase_tries(1)
-                if line[0:len(line)-1] == self.raw_password:
-                    self.found = True
-                    self.stop()
     
-    def stored_search(self):
+    def database_search(self, db_name, operator = -1):
         try:
-            with open(self.databases['stored_db'], 'r') as f:
+            with open(self.databases[db_name], 'r') as f:
                 for line in f:
                     if not self.running:
                         return
-                    self.stats.increase_tries(2)
+                    self.stats.increase_tries(operator)
                     if line[0:len(line)-1] == self.raw_password:
-                        self.stats.password_found = True
+                        self.stats.found(operator)
                         self.stop()
         except FileNotFoundError:
             return
