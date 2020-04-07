@@ -5,6 +5,7 @@ from write_process import append_to_file
 import string
 import time
 import logging
+import itertools
 
 logging.basicConfig(filename='log_password.txt', level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -29,6 +30,8 @@ class Password:
 
     running = False
 
+    length_limit = 0
+
     timeLimit = 0.0
 
     delay = 0.0
@@ -41,24 +44,16 @@ class Password:
     }
 
     threads = {
-       # "brute_force": None, FIXME: uncomment
+        "brute_force": None,
         "database_search": None,
         "local_search": None,
     }
 
     stats = None
 
-    #TODO: Delete globals after this line when done with Statistics class
-    found = False
-
-    count = 0 #Delete after testing
-
-    #End delete here
-
-    def __init__(self, password, gui_update=None, delay=1.0, time_limit=5.0, length_limit=16, fixed_length=False, use_hint=True, starting_hint=True, database_path="database/db.txt", stored_path="database/stored.txt"):
+    def __init__(self, password, gui_update=None, delay=1.0, time_limit=10.0, length_limit=12, fixed_length=False, use_hint=False, starting_hint=True, database_path="database/db.txt", stored_path="database/stored.txt"):
         logging.debug("password: " + password + " || delay: " + str(delay) + " || time limit: " + str(time_limit))
-        if length_limit:
-            pass
+        self.length_limit = length_limit
         self.gui_update = gui_update
         self.databases["database"] = database_path
         self.databases["stored_db"] = stored_path
@@ -153,7 +148,7 @@ class Password:
                 key = "HIGH"
             elif self.winner == 0 or self.winner == 1:
                 key = "MEDIUM"
-            logging.debug("found: " + str(self.hints_found) + " || tries: " + str(self.tries[operator]) + " || winner: " + str(self.winner) + " || key: " + key)
+            logging.debug("found: " + str(self.password_found) + " || tries: " + str(self.tries) + " || winner: " + self.operators[self.winner] + " || key: " + key)
             #key = self.indices[key_position]
             return (key, self.INDEX[key])
 
@@ -183,7 +178,10 @@ class Password:
         def total_reset(self):
             for key in self.operators:
                 self.operators[key] = 0
-            self.reset()     
+            self.reset()
+
+        def who_won(self):
+            return self.winner   
 
     # Set a single timer, used to reset a timer.
     def set_timer(self, index, delay, func):
@@ -191,19 +189,20 @@ class Password:
             self.timers[index] = Timer(delay, func).start()
             
     def run(self):
-        #self.threads["brute_force"] = Thread(target = self.brute_force) FIXME: uncomment
+        self.threads["brute_force"] = Thread(target = self.brute_force)
         self.threads["database_search"] = Thread(target = self.database_search, args = ("database", self.stats.operators.index("database")))
         self.threads["local_search"] = Thread(target = self.database_search, args = ("stored_db", self.stats.operators.index("local")))
-        for t in self.threads:
-            self.threads[t].start()
         self.timers.append(Timer(self.timeLimit, self.stop).start())       #0
         if self.hints_on:
             self.timers.append(Timer(self.delay, self.timers_operator).start()) #1
             self.timers.append(Timer(self.delay, self.give_hint).start())       #2
-        #self.threads["brute_force"].join() FIXME: uncomment
+        for t in self.threads:
+            self.threads[t].start()
+        self.threads["brute_force"].join()
         self.threads["database_search"].join()
         self.threads["local_search"].join()
         self.game_over()
+        logging.debug("PROGRAM COMPLETE")
     
     def timers_operator(self):
         if self.running and self.hints_on:
@@ -213,11 +212,12 @@ class Password:
     #Tells all threads to stop asap, and stop all timers.
     def stop(self):
         self.running = False
-        for timer in self.timers:
+        for tmr in self.timers:
             try:
-                timer.cancel()
-            except AttributeError:
-                continue
+                logging.debug("Stopped a timer")
+                tmr.cancel()
+            except AttributeError as err:
+                logging.debug("Timer could not be stopped, error: " + str(err))
 
     def set_password(self, new_password):
         self.raw_password = new_password
@@ -240,32 +240,32 @@ class Password:
                 self.gui_update(str(self.timing+1))
                 self.timing += 1
 
-    """def brute_force(self):
-        vals = string.ascii_letters + string.digits + string.punctuation 
+    def brute_force(self):
+        vals = string.ascii_letters + string.digits + string.punctuation
+        len_vals = len(vals)
         repeat = False
-        while self.running: #TODO: fix it so that it gets a lot of values, equal the number of unknown positions, to try at once (fill an array for that), then increase the tries.
-            val = secrets.choice(vals)
-            with self.lock:
-                if self.unknown_positions != []: # a redundant check made obsolete by the check put at the end of the loop, as this case should not be possible.
-                    position = secrets.choice(self.unknown_positions)
-                else:
-                    position = None
-                if self.hint:
-                    self.password[position] = self.password_plain[position]
-                    self.unknown_positions.remove(position)
-                    self.hint = False
-                    repeat = True
-            if repeat:
-                repeat = False
-                continue
-            else:
-                with self.lock:
-                    if position is not None and self.password_plain[position] == val: 
-                        self.password[position] = self.password_plain[position]
-                        self.unknown_positions.remove(position)
-                    if self.unknown_positions == []:    
-                        self.found = True
-                        self.stop()"""
+        for i in range(self.length_limit):
+            if not self.running:
+                logging.debug("BRUTE FORCE -- STOPPING EXECUTION")
+                break
+            max_iter = len_vals ** i
+            if max_iter > 2000000:
+                max_iter = 2000000
+            permutations = itertools.islice(itertools.permutations(vals, i), max_iter)
+            for perm in permutations:
+                word = ''.join(perm)
+                self.stats.increase_tries(0)
+                if word == self.raw_password:
+                    with self.lock:
+                        if self.running:
+                            self.stats.found(0)
+                            self.stop()
+                            break
+            if not self.running:
+                logging.debug("BRUTE FORCE -- EXECUTION STOPPED")
+                break
+        self.stop()
+        logging.debug("Brute force stopped at words of length: " + str(i))
     
     def database_search(self, db_name, operator = -1):
         try:
@@ -275,18 +275,24 @@ class Password:
                         return
                     self.stats.increase_tries(operator)
                     if line[0:len(line)-1] == self.raw_password:
-                        self.stats.found(operator)
-                        self.stop()
+                        with self.lock:
+                            if self.running:
+                                self.stats.found(operator)
+                                self.stop()
         except FileNotFoundError:
             return
 
     def game_over(self):
-        p = Process(target=append_to_file, args=(self.databases["stored_db"], self.raw_password)) #Process because if something happens to the main program the save process will survive.
-        p.start()
+        logging.debug("GAME OVER -- STOPPING EXECUTION")
+        join = False
+        if self.stats.who_won != 1:
+            p = Process(target=append_to_file, args=(self.databases["stored_db"], self.raw_password)) #Process because if something happens to the main program the save process will survive.
+            p.start()
         self.stop()
-        #self.gui_update("GAME OVER")
         self.gui_update(self.stats.get_INDEX()) #FIXME: delete
-        p.join()
+        if join:
+            p.join()
+        logging.debug("GAME OVER -- EXECUTION STOPPED")
         
     def get_pos(self):
         return self.unknown_positions

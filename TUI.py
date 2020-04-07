@@ -5,6 +5,7 @@ def print_result(obj):
     print("The definition is [" + str(obj[1]) + "]")
 
 if __name__ == "__main__":
-    print("insert password:")
-    pasw = input()
-    runner = Password(password=pasw, gui_update=print_result)
+    while True:
+        print("insert password:")
+        pasw = input()
+        runner = Password(password=pasw, gui_update=print_result)
