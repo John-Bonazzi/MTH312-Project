@@ -24,7 +24,8 @@ def testVal(P):
 
 
 def passwordUpdate(message):
-    knownLbl.configure(text=message)
+    final = message[0] + '\n' + message[1]
+    knownLbl.configure(text=final)
     window.update()
 
 
