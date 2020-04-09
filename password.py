@@ -79,7 +79,10 @@ class Password:
         
         indices = ["SAFE", "HIGH", "MEDIUM", "LOW"] #The name of each INDEX
 
-        definitions = ['not broken','wow', 'ok', 'sigh'] #The definition for each INDEX, it follows the same order, first definition is for first INDEX and so forth.
+        definitions = ['The program was not able to find the password, that means you chose a password that is long enough to beat the brute force algorithm in the given time, and that is not one of the most used.',
+                       'The program was able to find the password through the brute force algorithm.\nThis means the password you chose might not have been long enough.', 
+                       'The program was able to find the password because you already used it once.\nIf the original password was not found, then you would be fine.\nHowever, using the same password accross services makes your digital information more vulnerable.\nA better solution would be to diversify your passwords', 
+                       'The program was able to find the password because it was too simple and was matched with password most used by others.\nPasswords like "hello" or "123456" are examples of passwords that are too simple.\nA good starting point to choose a password might be to create something unique with a good mix of letters, numbers and symbols.\nA preferred solution would be to have a randomizer create your password for you by scrambling letters, numbers and symbols into a word with no rationality behind it.'] #The definition for each INDEX, it follows the same order, first definition is for first INDEX and so forth.
 
         password_found = False
         
@@ -112,7 +115,6 @@ class Password:
             for key, value in zip(keys, values):
                 pointer[key] = value
 
-
         def found(self, winner = -1):
             self.time_end = time.time()
             try:
@@ -143,11 +145,11 @@ class Password:
             elif self.tries[operator] <= 3:
                 key = "LOW"
             elif self.winner == 2:
-                key = "LOW"
+                key = "MEDIUM"
             elif self.winner == 0:#TODO: complete this with brute force and something else
                 key = "HIGH"
-            elif self.winner == 0 or self.winner == 1:
-                key = "MEDIUM"
+            elif self.winner == 1:
+                key = "LOW"
             logging.debug("found: " + str(self.password_found) + " || tries: " + str(self.tries) + " || winner: " + self.operators[self.winner] + " || key: " + key)
             #key = self.indices[key_position]
             return (key, self.INDEX[key])

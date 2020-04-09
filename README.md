@@ -27,8 +27,6 @@ If I can figure out a good randomizer, we might make use of multi-threading to h
 That will be a thing only if I can find a way to avoid having threads running the same random values and repeating the same work.
 
 ## Checklist of features
-- [ ] basic game with mechanics
-- [ ] Rules added
-- [ ] Game Over conditions based on rules added
-- [ ] Options & preferences added
-- [ ] Multi-threading support
+- [x] basic game with mechanics
+- [x] Game Over conditions based on different factors added
+- [x] Multi-threading support
