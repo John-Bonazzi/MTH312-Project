@@ -29,8 +29,10 @@ class Password:
     lock = None
 
     running = False
+    
+    length_limit_upper = 0
 
-    length_limit = 0
+    length_limit_lower = 0
 
     timeLimit = 0.0
 
@@ -51,17 +53,19 @@ class Password:
 
     stats = None
 
-    def __init__(self, password, gui_update=None, delay=1.0, time_limit=10.0, length_limit=12, fixed_length=False, use_hint=False, starting_hint=True, database_path="database/db.txt", stored_path="database/stored.txt"):
+    def __init__(self, password, gui_update=None, delay=1.0, time_limit=10.0, length_lower_limit = 4, length_upper_limit=12, fixed_length=False, use_hint=False, starting_hint=False, database_path="database/db.txt", stored_path="database/stored.txt"):
         logging.debug("password: " + password + " || delay: " + str(delay) + " || time limit: " + str(time_limit))
-        self.length_limit = length_limit
         self.gui_update = gui_update
         self.databases["database"] = database_path
         self.databases["stored_db"] = stored_path
-        if password == '':
-            self.game_over()
-            return
         if self.stats == None:
             self.stats = self.Statistics(len(password))
+        if len(password) < length_lower_limit or len(password) > length_upper_limit:
+            self.stats.found()
+            self.game_over(save=False)
+            return
+        self.length_limit_lower = length_lower_limit
+        self.length_limit_upper = length_upper_limit
         self.set_password(password)
         self.unknown_positions = list(range(0, len(self.password_plain)))
         self.lock = RLock()
@@ -77,12 +81,13 @@ class Password:
     class Statistics:
         operators = ["brute force", "database", "local", "unidentified"] #The name of each Thread that tries to break the password, with a default ['unidentified'] that is used internally to check for errors.
         
-        indices = ["SAFE", "HIGH", "MEDIUM", "LOW"] #The name of each INDEX
+        indices = ["SAFE", "HIGH", "MEDIUM", "LOW", "WARNING"] #The name of each INDEX
 
         definitions = ['The program was not able to find the password, that means you chose a password that is long enough to beat the brute force algorithm in the given time, and that is not one of the most used.',
                        'The program was able to find the password through the brute force algorithm.\nThis means the password you chose might not have been long enough.', 
                        'The program was able to find the password because you already used it once.\nIf the original password was not found, then you would be fine.\nHowever, using the same password accross services makes your digital information more vulnerable.\nA better solution would be to diversify your passwords', 
-                       'The program was able to find the password because it was too simple and was matched with password most used by others.\nPasswords like "hello" or "123456" are examples of passwords that are too simple.\nA good starting point to choose a password might be to create something unique with a good mix of letters, numbers and symbols.\nA preferred solution would be to have a randomizer create your password for you by scrambling letters, numbers and symbols into a word with no rationality behind it.'] #The definition for each INDEX, it follows the same order, first definition is for first INDEX and so forth.
+                       'The program was able to find the password because it was too simple and was matched with password most used by others.\nPasswords like "hello" or "123456" are examples of passwords that are too simple.\nA good starting point to choose a password might be to create something unique with a good mix of letters, numbers and symbols.\nA preferred solution would be to have a randomizer create your password for you by scrambling letters, numbers and symbols into a word with no rationality behind it.',
+                       'The program stopped either because the password is too short, meaning the brute force can break it every time, or too long, meaning that with the given time the program cannot do any meaningful work towards breaking it.'] #The definition for each INDEX, it follows the same order, first definition is for first INDEX and so forth.
 
         password_found = False
         
@@ -98,7 +103,7 @@ class Password:
 
         tries = {} #Map of password-breaking tries for each operator. if password is broken in 3 or less tries, it is low by default
 
-        winner = -1
+        winner = 0
 
         winners_count = {}
 
@@ -137,11 +142,12 @@ class Password:
             return len(self.letters_found) + self.hints_found
 
         def get_INDEX(self):
-            #key_position = 0
             key = 'LOW'
             operator = self.operators[self.winner]
-            if not self.password_found: #TODO: change it so that it is safe based on how few letters brute force found (hints are not considered)
+            if not self.password_found:
                 key = "SAFE"
+            elif operator == self.operators[-1]:
+                key = "WARNING"
             elif self.tries[operator] <= 3:
                 key = "LOW"
             elif self.winner == 2:
@@ -246,7 +252,7 @@ class Password:
         vals = string.ascii_letters + string.digits + string.punctuation
         len_vals = len(vals)
         repeat = False
-        for i in range(self.length_limit):
+        for i in range(self.length_limit_lower, self.length_limit_upper):
             if not self.running:
                 logging.debug("BRUTE FORCE -- STOPPING EXECUTION")
                 break
@@ -284,13 +290,13 @@ class Password:
         except FileNotFoundError:
             return
 
-    def game_over(self):
+    def game_over(self, save=True):
+        self.stop()
         logging.debug("GAME OVER -- STOPPING EXECUTION")
         join = False
-        if self.stats.who_won != 1:
+        if (self.stats.who_won != 1 or self.stats.who_won != 2) and save:
             p = Process(target=append_to_file, args=(self.databases["stored_db"], self.raw_password)) #Process because if something happens to the main program the save process will survive.
-            p.start()
-        self.stop()
+            p.start()    
         self.gui_update(self.stats.get_INDEX()) #FIXME: delete
         if join:
             p.join()
